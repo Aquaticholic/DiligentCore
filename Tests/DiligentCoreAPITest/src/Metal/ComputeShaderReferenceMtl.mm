@@ -45,8 +45,7 @@ void ComputeShaderReferenceMtl(ISwapChain* pSwapChain)
 
     @autoreleasepool
     {
-        // Autoreleased
-        auto* progSrc = [NSString stringWithUTF8String:MSL::FillTextureCS.c_str()];
+        auto* progSrc = [NSString stringWithUTF8String:MSL::FillTextureCS.c_str()]; // Autoreleased
         NSError *errors = nil; // Autoreleased
         id <MTLLibrary> library = [mtlDevice newLibraryWithSource:progSrc
                                    options:nil
