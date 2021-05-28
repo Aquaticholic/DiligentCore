@@ -2108,12 +2108,10 @@ inline void DeviceContextBase<ImplementationTraits>::DvpVerifyRenderTargets() co
     DEV_CHECK_ERR(m_pPipelineState, "No pipeline state is bound");
 
     const auto& PSODesc = m_pPipelineState->GetDesc();
-    DEV_CHECK_ERR(PSODesc.IsAnyGraphicsPipeline(),
+    DEV_CHECK_ERR(PSODesc.IsAnyGraphicsPipeline() || PSODesc.PipelineType == PIPELINE_TYPE_TILE,
                   "Pipeline state '", PSODesc.Name, "' is not a graphics pipeline");
 
-    TEXTURE_FORMAT BoundRTVFormats[8] = {TEX_FORMAT_UNKNOWN};
-    TEXTURE_FORMAT BoundDSVFormat     = TEX_FORMAT_UNKNOWN;
-
+    TEXTURE_FORMAT BoundRTVFormats[MAX_RENDER_TARGETS] = {};
     for (Uint32 rt = 0; rt < m_NumBoundRenderTargets; ++rt)
     {
         if (auto* pRT = m_pBoundRenderTargets[rt].RawPtr())
@@ -2121,28 +2119,43 @@ inline void DeviceContextBase<ImplementationTraits>::DvpVerifyRenderTargets() co
         else
             BoundRTVFormats[rt] = TEX_FORMAT_UNKNOWN;
     }
+    const TEXTURE_FORMAT BoundDSVFormat = m_pBoundDepthStencil ? m_pBoundDepthStencil->GetDesc().Format : TEX_FORMAT_UNKNOWN;
 
-    BoundDSVFormat = m_pBoundDepthStencil ? m_pBoundDepthStencil->GetDesc().Format : TEX_FORMAT_UNKNOWN;
+    Uint32         NumPipelineRenderTargets               = 0;
+    TEXTURE_FORMAT PipelineRTVFormats[MAX_RENDER_TARGETS] = {};
+    TEXTURE_FORMAT PipelineDSVFormat                      = TEX_FORMAT_UNKNOWN;
+    if (PSODesc.IsAnyGraphicsPipeline())
+    {
+        const auto& GraphicsPipeline = m_pPipelineState->GetGraphicsPipelineDesc();
+        memcpy(PipelineRTVFormats, GraphicsPipeline.RTVFormats, sizeof(GraphicsPipeline.RTVFormats));
+        PipelineDSVFormat        = GraphicsPipeline.DSVFormat;
+        NumPipelineRenderTargets = GraphicsPipeline.NumRenderTargets;
+    }
+    else
+    {
+        const auto& TilePipeline = m_pPipelineState->GetTilePipelineDesc();
+        memcpy(PipelineRTVFormats, TilePipeline.RTVFormats, sizeof(TilePipeline.RTVFormats));
+        NumPipelineRenderTargets = TilePipeline.NumRenderTargets;
+    }
 
-    const auto& GraphicsPipeline = m_pPipelineState->GetGraphicsPipelineDesc();
-    if (GraphicsPipeline.NumRenderTargets != m_NumBoundRenderTargets)
+    if (NumPipelineRenderTargets != m_NumBoundRenderTargets)
     {
         LOG_WARNING_MESSAGE("The number of currently bound render targets (", m_NumBoundRenderTargets,
                             ") does not match the number of outputs specified by the PSO '", PSODesc.Name,
-                            "' (", Uint32{GraphicsPipeline.NumRenderTargets}, ").");
+                            "' (", NumPipelineRenderTargets, ").");
     }
 
-    if (BoundDSVFormat != GraphicsPipeline.DSVFormat)
+    if (BoundDSVFormat != PipelineDSVFormat)
     {
         LOG_WARNING_MESSAGE("Currently bound depth-stencil buffer format (", GetTextureFormatAttribs(BoundDSVFormat).Name,
                             ") does not match the DSV format specified by the PSO '", PSODesc.Name,
-                            "' (", GetTextureFormatAttribs(GraphicsPipeline.DSVFormat).Name, ").");
+                            "' (", GetTextureFormatAttribs(PipelineDSVFormat).Name, ").");
     }
 
     for (Uint32 rt = 0; rt < m_NumBoundRenderTargets; ++rt)
     {
         auto BoundFmt = BoundRTVFormats[rt];
-        auto PSOFmt   = GraphicsPipeline.RTVFormats[rt];
+        auto PSOFmt   = PipelineRTVFormats[rt];
         if (BoundFmt != PSOFmt)
         {
             LOG_WARNING_MESSAGE("Render target bound to slot ", rt, " (", GetTextureFormatAttribs(BoundFmt).Name,
