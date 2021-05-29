@@ -981,7 +981,12 @@ DILIGENT_TYPED_ENUM(MISC_TEXTURE_FLAGS, Uint8)
     /// Allow automatic mipmap generation with ITextureView::GenerateMips()
 
     /// \note A texture must be created with BIND_RENDER_TARGET bind flag
-    MISC_TEXTURE_FLAG_GENERATE_MIPS = 0x01
+    MISC_TEXTURE_FLAG_GENERATE_MIPS = 0x01,
+
+    /// Texture will be used only as transient attachment.
+    /// \note Memoryless attachment must be used only with render passes and
+    ///       load operation must be CLEAR or DISCARD, store operation must be DISCARD.
+    MISC_TEXTURE_FLAG_MEMORYLESS    = 0x02,
 };
 DEFINE_FLAG_ENUM_OPERATORS(MISC_TEXTURE_FLAGS)
 
@@ -2213,6 +2218,10 @@ struct AdapterMemoryInfo
 
     /// Supported access types for the unified memory.
     CPU_ACCESS_FLAGS UnifiedMemoryCPUAccess DEFAULT_INITIALIZER(CPU_ACCESS_NONE);
+
+    /// Indicates if device supports color and depth attachments with on-chip memory.
+    /// If supported it must be combination of flags: BIND_RENDER_TARGET, BIND_DEPTH_STENCIL, BIND_INPUT_ATTACHMENT.
+    BIND_FLAGS MemorylessTextureBindFlags DEFAULT_INITIALIZER(BIND_NONE);
 };
 typedef struct AdapterMemoryInfo AdapterMemoryInfo;
 
