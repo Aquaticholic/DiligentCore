@@ -37,7 +37,6 @@ const std::string RayTracingTest8_CS{R"msl(
 #include <metal_stdlib>
 #include <simd/simd.h>
 #include <metal_raytracing>
-#include <metal_visible_function_table>
 
 using namespace metal;
 using namespace raytracing;
